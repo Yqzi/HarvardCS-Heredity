@@ -127,6 +127,37 @@ def powerset(s):
         )
     ]
 
+def copies_of_genes(person, one_gene, two_gene):
+    return 1 if person in one_gene else 2 if person in two_gene else 0
+
+
+def has_no_parents(gene_copies, has_trait):
+    return PROBS['gene'][gene_copies] * PROBS['trait'][gene_copies][has_trait]
+
+
+def has_parents(person, gene_copies, has_trait):
+    def pass_prob(copies):
+        if copies == 0:
+            return PROBS["mutation"]
+        if copies == 1:
+            return 0.5
+        return 1 - PROBS['mutation']
+
+    mother_copies = copies_of_genes(person['mother']) 
+    father_copies = copies_of_genes(person['father'])
+
+    mother_pass = pass_prob(mother_copies)
+    father_pass = pass_prob(father_copies)
+
+    if gene_copies == 0:
+        prob = (1 - mother_pass) * (1 - father_pass)
+    elif gene_copies == 1:
+        prob = (mother_pass * (1 - father_pass)) + ((1 - mother_pass) * father_pass)
+    else:
+        prob = (mother_pass * father_pass)
+
+    return PROBS['trait'][gene_copies][has_trait] * prob
+
 
 def joint_probability(people, one_gene, two_genes, have_trait):
     """
@@ -139,7 +170,18 @@ def joint_probability(people, one_gene, two_genes, have_trait):
         * everyone in set `have_trait` has the trait, and
         * everyone not in set` have_trait` does not have the trait.
     """
-    raise NotImplementedError
+    prob = 1
+    
+    for person in people:
+        gene_copies = copies_of_genes(person, one_gene, two_genes)
+        has_trait = person in have_trait
+
+        if person["mother"] == None:
+            prob *= has_no_parents(gene_copies, has_trait)
+        else:
+            prob *= has_parents(person, gene_copies, has_trait)
+    
+    return prob
 
 
 def update(probabilities, one_gene, two_genes, have_trait, p):
@@ -149,7 +191,12 @@ def update(probabilities, one_gene, two_genes, have_trait, p):
     Which value for each distribution is updated depends on whether
     the person is in `have_gene` and `have_trait`, respectively.
     """
-    raise NotImplementedError
+    for person in probabilities:
+        gene_copies = copies_of_genes(person, one_gene, two_genes)
+        has_trait = person in have_trait
+        
+        person['gene'][gene_copies] += p
+        person['trait'][[has_trait]] += p
 
 
 def normalize(probabilities):
@@ -157,7 +204,6 @@ def normalize(probabilities):
     Update `probabilities` such that each probability distribution
     is normalized (i.e., sums to 1, with relative proportions the same).
     """
-    raise NotImplementedError
 
 
 if __name__ == "__main__":
