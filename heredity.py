@@ -135,7 +135,7 @@ def has_no_parents(gene_copies, has_trait):
     return PROBS['gene'][gene_copies] * PROBS['trait'][gene_copies][has_trait]
 
 
-def has_parents(person, gene_copies, has_trait):
+def has_parents(people, person, gene_copies, has_trait, one_gene, two_genes):
     def pass_prob(copies):
         if copies == 0:
             return PROBS["mutation"]
@@ -143,8 +143,8 @@ def has_parents(person, gene_copies, has_trait):
             return 0.5
         return 1 - PROBS['mutation']
 
-    mother_copies = copies_of_genes(person['mother']) 
-    father_copies = copies_of_genes(person['father'])
+    mother_copies = copies_of_genes(people[person]['mother'], one_gene, two_genes) 
+    father_copies = copies_of_genes(people[person]['father'], one_gene, two_genes)
 
     mother_pass = pass_prob(mother_copies)
     father_pass = pass_prob(father_copies)
@@ -176,10 +176,10 @@ def joint_probability(people, one_gene, two_genes, have_trait):
         gene_copies = copies_of_genes(person, one_gene, two_genes)
         has_trait = person in have_trait
 
-        if person["mother"] == None:
+        if people[person]["mother"] == None:
             prob *= has_no_parents(gene_copies, has_trait)
         else:
-            prob *= has_parents(person, gene_copies, has_trait)
+            prob *= has_parents(people, person, gene_copies, has_trait, one_gene, two_genes)
     
     return prob
 
@@ -195,8 +195,8 @@ def update(probabilities, one_gene, two_genes, have_trait, p):
         gene_copies = copies_of_genes(person, one_gene, two_genes)
         has_trait = person in have_trait
         
-        person['gene'][gene_copies] += p
-        person['trait'][[has_trait]] += p
+        probabilities[person]['gene'][gene_copies] += p
+        probabilities[person]['trait'][has_trait] += p
 
 
 def normalize(probabilities):
@@ -204,6 +204,24 @@ def normalize(probabilities):
     Update `probabilities` such that each probability distribution
     is normalized (i.e., sums to 1, with relative proportions the same).
     """
+    for person in probabilities:
+        has_trait = probabilities[person]['trait'][True]
+        has_no_trait = probabilities[person]['trait'][False]
+
+        no_gene = probabilities[person]['gene'][0]
+        one_gene = probabilities[person]['gene'][1]
+        two_genes = probabilities[person]['gene'][2]
+
+        trait_prob = has_trait + has_no_trait
+        if trait_prob != 0:
+            probabilities[person]['trait'][True] /= trait_prob
+            probabilities[person]['trait'][False] /= trait_prob
+        
+        gene_prob = no_gene + one_gene + two_genes
+        if gene_prob != 0:
+            probabilities[person]['gene'][0] /= gene_prob
+            probabilities[person]['gene'][1] /= gene_prob
+            probabilities[person]['gene'][2] /= gene_prob
 
 
 if __name__ == "__main__":
